@@ -142,3 +142,76 @@ def fetch_channel_metadata(
     return out
 
 
+# ----------------------------
+# Step 3: Estimate avg views from last N videos
+# ----------------------------
+
+def recent_video_ids_for_channel(
+    youtube,
+    channel_id: str,
+    n_recent: int = 10,
+) -> List[str]:
+    """Fetch up to N most recent video IDs for a channel."""
+    try:
+        resp = youtube.search().list(
+            part="id",
+            channelId=channel_id,
+            type="video",
+            order="date",
+            maxResults=min(n_recent, 50),
+        ).execute()
+    except HttpError:
+        return []
+
+    vids: List[str] = []
+    for item in resp.get("items", []):
+        vid = item.get("id", {}).get("videoId")
+        if vid:
+            vids.append(vid)
+    return vids
+
+
+def view_counts_for_videos(
+    youtube,
+    video_ids: List[str],
+) -> List[int]:
+    """Fetch view counts for a list of video IDs (batch by 50)."""
+    views: List[int] = []
+
+    for batch in chunks(video_ids, 50):
+        try:
+            resp = youtube.videos().list(
+                part="statistics",
+                id=",".join(batch),
+                maxResults=50,
+            ).execute()
+        except HttpError:
+            continue
+
+        for item in resp.get("items", []):
+            vc = safe_int(item.get("statistics", {}).get("viewCount"))
+            if vc is not None:
+                views.append(vc)
+
+        time.sleep(0.05)
+
+    return views
+
+
+def estimate_avg_views(
+    youtube,
+    channel_id: str,
+    n_recent: int = 10,
+) -> Optional[int]:
+    """Average views across last N videos (rounded)."""
+    vids = recent_video_ids_for_channel(youtube, channel_id, n_recent=n_recent)
+    if not vids:
+        return None
+
+    views = view_counts_for_videos(youtube, vids)
+    if not views:
+        return None
+
+    return round(sum(views) / len(views))
+
+
