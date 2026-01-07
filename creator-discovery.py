@@ -215,3 +215,83 @@ def estimate_avg_views(
     return round(sum(views) / len(views))
 
 
+# ----------------------------
+# Output
+# ----------------------------
+
+def save_csv(path: str, rows: List[ChannelInfo], category: str) -> None:
+    with open(path, "w", newline="", encoding="utf-8") as f:
+        w = csv.writer(f)
+        w.writerow(["category", "channel_name", "channel_url", "subscribers", "avg_views_last_n"])
+        for r in rows:
+            w.writerow([
+                category,
+                r.name,
+                r.url,
+                "" if r.subscribers is None else r.subscribers,
+                "" if r.avg_views_last_n is None else r.avg_views_last_n,
+            ])
+
+    print(f"[OK] Saved {len(rows)} channels → {path}")
+
+
+# ----------------------------
+# Run: Design & Architecture example
+# ----------------------------
+
+def main():
+    youtube = youtube_client_from_env()
+
+    category = "Design & Architecture"
+    keywords = [
+        "interior design",
+        "home renovation",
+        "apartment makeover",
+        "architecture design",
+    ]
+
+    # Tune these depending on how many channels you want.
+    pages_per_keyword = 2         # try 5–10 to scale up fast
+    results_per_page = 50
+    n_recent_videos = 10
+    order = "relevance"           # or "viewCount" for bigger channels
+
+    # 1) Discover channel IDs
+    channel_ids = discover_channel_ids(
+        youtube,
+        keywords=keywords,
+        pages_per_keyword=pages_per_keyword,
+        results_per_page=results_per_page,
+        order=order,
+    )
+    print(f"[INFO] Found {len(channel_ids)} unique channels (before stats).")
+
+    # 2) Fetch channel names + subs
+    meta = fetch_channel_metadata(youtube, list(channel_ids))
+
+    # 3) Estimate avg views for each channel
+    rows: List[ChannelInfo] = []
+    for cid, m in meta.items():
+        avg_views = estimate_avg_views(youtube, cid, n_recent=n_recent_videos)
+        rows.append(ChannelInfo(
+            channel_id=cid,
+            name=m["name"],
+            url=f"https://www.youtube.com/channel/{cid}",
+            subscribers=m["subscribers"],
+            avg_views_last_n=avg_views,
+        ))
+
+    # Sort by avg views (descending) so the strongest candidates appear first
+    rows.sort(key=lambda r: (r.avg_views_last_n or -1), reverse=True)
+
+    # Print a quick preview
+    print("\nTop 10 (by avg views):")
+    for r in rows[:10]:
+        print(f"- {r.name} | subs={r.subscribers} | avg{n_recent_videos}={r.avg_views_last_n} | {r.url}")
+
+    # 4) Save CSV
+    save_csv("design_architecture_channels.csv", rows, category=category)
+
+
+if __name__ == "__main__":
+    main()
