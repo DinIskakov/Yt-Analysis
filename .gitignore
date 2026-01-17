@@ -97,7 +97,6 @@ env/
 
 # Data
 data/
-*.csv
 *.tsv
 *.h5
 
