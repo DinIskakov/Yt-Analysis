@@ -1,21 +1,24 @@
 # Yt-Analysis
 
-Discover YouTube creators by keyword, enrich them with channel stats, and export
-results to CSV.
+YouTube creator discovery pipeline for partner sourcing across 8 categories.
+It replaces manual scouting with a repeatable, data-backed shortlist, so you
+can quickly find relevant creators and compare performance without days of
+searching.
 
 ## What it does
-- Searches YouTube videos for a list of keywords
+- Searches YouTube by category keywords (OR query)
 - Collects unique channel IDs
-- Fetches channel name + subscriber count
-- Estimates average views from recent videos
-- Writes a CSV you can review or filter
+- Fetches channel name + subscriber count + uploads playlist
+- Estimates avg views from recent uploads
+- Applies title-term relevance checks
+- Ranks by relevance and exports top 50 per category
 
 ## Requirements
 - Python 3.9+
 - Google YouTube Data API v3 key
 
 ## Setup
-1) Create a virtualenv (optional but recommended)
+1) (Optional) Create a virtualenv
 ```
 python -m venv .venv
 source .venv/bin/activate
@@ -35,7 +38,7 @@ python creator-discovery.py
 ```
 
 ## Output
-The script writes a CSV named `design_architecture_channels.csv` with:
+One CSV per category (slugified name), each with:
 - category
 - channel_name
 - channel_url
@@ -43,5 +46,5 @@ The script writes a CSV named `design_architecture_channels.csv` with:
 - avg_views_last_n
 
 ## Notes
-- YouTube API quotas apply; increase pages gradually.
-- Subscriber counts can be hidden for some channels.
+- YouTube API quota is per project; new keys in the same project share quota.
+- Tune `pages_per_keyword`, `include_channel_search`, and `n_recent_videos` in `creator-discovery.py` to trade recall vs. quota.
